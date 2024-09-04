@@ -1,0 +1,41 @@
+@mixin event-modal {
+  .calendar-event-modal {
+    padding: 10px;
+  }
+
+  .calendarPage-add {
+    width: 398px;
+    position: absolute;
+    left: var(--left);
+    top: var(--top);
+    background-color: #fff;
+    border: #737286 1px solid;
+    border-radius: 5px;
+    z-index: 5;
+   
+  }
+
+  .calendar-event-modal-content {
+    position: relative;
+  }
+
+  .calendar-event-modal-exit {
+    padding: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 5;
+    border: #dbdbe0 2px solid;
+    border-radius: 100%;
+    display: flex;
+  }
+
+  .calendar-event-modal-cancel {
+    color: #ff0000;
+  }
+
+  .calendar-event-modal-btns {
+    display: flex;
+    justify-content: space-between;
+  }
+}

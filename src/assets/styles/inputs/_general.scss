@@ -1,0 +1,29 @@
+@mixin inputs-container {
+  input {
+    position: relative;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #bebecb;
+    outline: none;
+    padding: 25px 10px 5px;
+    font-weight: 500;
+    font-size: 1em;
+    height: 55px;
+  }
+
+  i {
+    position: absolute;
+    left: 10px;
+    font-style: normal;
+    color: #bebecb;
+    font-size: 14px;
+  }
+
+  .invalid {
+    border: 1px solid #ff0000;
+  }
+
+  .time-text {
+    font-style: italic;
+  }
+}
