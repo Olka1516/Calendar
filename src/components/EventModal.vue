@@ -3,26 +3,23 @@
     @click="stop($event)"
     class="calendar-event-modal"
     :class="{ 'calendarPage-add': add }"
-    :style="{
-      '--top': `${coordinates.top + 40}px`,
-      '--left': `${coordinates.left > 680 ? coordinates.left - 300 : coordinates.left - 100}px`
-    }"
+    :style="computedModalStyles"
   >
     <div class="calendar-event-modal-content">
       <button class="calendar-event-modal-exit" @click="closeModal">
         <img src="@/assets/pictures/icons/exit.svg" alt="" />
       </button>
       <div class="field">
-        <IText name="event name" v-model="localEvent.title" :v="v.title" />
+        <IText name="event name" v-model="localEvent.title" :v="v.title" :newModal="newModal" />
       </div>
       <div class="field">
-        <IDate name="event date" v-model="localEvent.start" :v="v.start" />
+        <IDate name="event date" v-model="localEvent.start" :v="v.start" :newModal="newModal" />
       </div>
       <div class="field">
-        <ITime name="event time" v-model="localEvent.time" :v="v.time" />
+        <ITime name="event time" v-model="localEvent.time" :v="v.time" :newModal="newModal" />
       </div>
       <div class="field">
-        <IText name="notes" v-model="localEvent.notes" :v="v.notes" />
+        <IText name="notes" v-model="localEvent.notes" :v="v.notes" :newModal="newModal" />
       </div>
       <div class="field">
         <IColor name="event color" v-model="localEvent.calendarId" />
@@ -38,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import IText from '@/components/inputs/IText.vue'
 import IDate from '@/components/inputs/IDate.vue'
 import ITime from '@/components/inputs/ITime.vue'
@@ -55,11 +52,19 @@ const props = defineProps<{
     time: Error
     notes: Error
   }
+  newModal: boolean
 }>()
 
 const emit = defineEmits(['update:event', 'close', 'deleteEvent'])
 
 const localEvent = reactive({ ...props.event })
+
+const computedModalStyles = computed(() => {
+  return {
+    '--top': `${props.coordinates.top + document.body.scrollTop + scrollY + 40}px`,
+    '--left': `${props.coordinates.left > 680 ? props.coordinates.left - 300 : props.coordinates.left - 100}px`
+  }
+})
 
 const saveEvent = () => {
   emit('update:event', localEvent)
@@ -88,7 +93,7 @@ watch(
 watch(
   () => props.event.time,
   () => {
-    localEvent.start = props.event.time
+    localEvent.time = props.event.time
   }
 )
 </script>

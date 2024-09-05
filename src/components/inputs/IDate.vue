@@ -18,20 +18,21 @@
 import { ref, watch } from 'vue'
 
 const props = defineProps<{
-  modelValue: null | string
+  modelValue: string
   name: string
   v: {
     $invalid: boolean
     $dirty: boolean
     $touch: Function
   }
+  newModal: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: string): void
 }>()
 
-const userInfo = ref(props.modelValue)
+const userInfo = ref(props.modelValue.split(' ')[0])
 
 const handleInput = (event: any) => {
   if (!event.target) return
@@ -40,13 +41,13 @@ const handleInput = (event: any) => {
 }
 
 const isInvalid = () => {
-  return props.v.$invalid && props.v.$dirty && !userInfo.value
+  return props.v.$invalid && props.v.$dirty && !userInfo.value && !props.newModal
 }
 
 watch(
   () => props.modelValue,
   () => {
-    userInfo.value = props.modelValue
+    userInfo.value = props.modelValue.split(' ')[0]
   }
 )
 </script>

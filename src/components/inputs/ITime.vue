@@ -23,6 +23,7 @@ const props = defineProps<{
     $dirty: boolean
     $touch: Function
   }
+  newModal: boolean
 }>()
 
 const emit = defineEmits<{
@@ -38,7 +39,7 @@ const handleInput = (event: any) => {
 }
 
 const isInvalid = () => {
-  return props.v.$invalid && props.v.$dirty && !userInfo.value
+  return props.v.$invalid && props.v.$dirty && !userInfo.value && !props.newModal
 }
 
 watch(

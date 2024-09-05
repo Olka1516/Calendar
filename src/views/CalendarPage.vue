@@ -8,6 +8,7 @@
       @close="closeModal"
       :add="true"
       :coordinates="{ top, left }"
+      :newModal="newModal"
     />
     <h1>Calendar</h1>
     <ScheduleXCalendar :calendar-app="calendarApp">
@@ -19,6 +20,7 @@
           @close="closeModal"
           @deleteEvent="deleteEvent"
           :coordinates="{ top, left }"
+          :newModal="newModal"
         />
       </template>
 
@@ -61,27 +63,34 @@ import {
   viewMonthGrid
 } from '@schedule-x/calendar'
 import { createEventModalPlugin } from '@schedule-x/event-modal'
+import { createCurrentTimePlugin } from '@schedule-x/current-time'
 import { createDragAndDropPlugin } from '@schedule-x/drag-and-drop'
 import { createEventsServicePlugin } from '@schedule-x/events-service'
 import { createCalendarControlsPlugin } from '@schedule-x/calendar-controls'
 import '@schedule-x/theme-default/dist/index.css'
 
-import { onMounted, reactive, ref, type Reactive, type Ref } from 'vue'
+import { onMounted, reactive, ref, type Reactive } from 'vue'
 import type { Event } from '@/types'
 import { colorsList } from './data'
 import { required, maxLength } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
+import {
+  addToLocalStorageEvents,
+  deleteEventFromLocalStorage,
+  loadEventsFromLocalStorage,
+  updateLocalStorageEvent
+} from '@/services/storage'
 
 const eventsServicePlugin = createEventsServicePlugin()
 const eventModalPlugin = createEventModalPlugin()
 const calendarControls = createCalendarControlsPlugin()
 
-const gridCalendarContainer: Ref<Element | null> = ref(null)
-const gridWeek: Ref<Element | null> = ref(null)
 const openModal = ref(false)
+const newModal = ref(false)
 const viewCalendar = ref('month-grid')
 const top = ref(0)
 const left = ref(0)
+
 const event: Reactive<Event> = reactive({
   title: '',
   start: '',
@@ -91,18 +100,6 @@ const event: Reactive<Event> = reactive({
   calendarId: colorsList.personal.colorName,
   id: 1
 })
-
-const generateRandomId = () => {
-  let result = ''
-  const digits = '0123456789'
-
-  for (let i = 0; i < 10; i++) {
-    const randomIndex = Math.floor(Math.random() * digits.length)
-    result += digits[randomIndex]
-  }
-
-  return result
-}
 
 const rules = {
   title: { required, minLength: maxLength(30) },
@@ -116,81 +113,38 @@ const rules = {
 
 const v$ = useVuelidate(rules, event)
 
-const calendarApp = createCalendar({
-  selectedDate: new Date().toISOString().split('T')[0],
-  defaultView: viewMonthGrid.name,
-  views: [createViewDay(), createViewWeek(), createViewMonthGrid(), createViewMonthAgenda()],
-  events: [],
-  calendars: colorsList,
-  plugins: [createDragAndDropPlugin(), eventModalPlugin, eventsServicePlugin, calendarControls],
-  callbacks: {
-    onEventClick(calendarEvent) {
-      openModal.value = false
-      event.title = calendarEvent.title!
-      event.start = calendarEvent.start
-      event.end = calendarEvent.end
-      event.time = calendarEvent.time
-      event.notes = calendarEvent.notes
-      event.calendarId = calendarEvent.calendarId!
-      event.id = calendarEvent.id
-    },
+const generateRandomId = () => Math.random().toString(36).substr(2, 9)
 
-    onClickDate(date) {
-      event.start = date
-      openModal.value = true
-    },
-
-    onClickDateTime(dateTime) {
-      console.log(dateTime)
-      event.start = dateTime.split(' ')[0]
-      event.end = dateTime.split(' ')[0]
-      event.time = dateTime.split(' ')[1]
-      openModal.value = true
-    }
-  }
-})
-
-const resetToDefault = () => {
-  event.title = ''
-  event.start = ''
-  event.end = ''
-  event.time = ''
-  event.notes = ''
-  event.calendarId = colorsList.personal.colorName
-  event.id = 0
-}
-const addToEvents = () => {
-  eventsServicePlugin.add(event)
-  resetToDefault()
-}
-
-const updateEvents = () => {
-  eventsServicePlugin.update(event)
-  resetToDefault()
-}
-
-const saveEvent = async (updatedEvent: Event) => {
-  Object.assign(event, updatedEvent)
+const formatDateTime = (event: Event) => {
+  event.start = `${event.start} ${event.time}`
   event.end = event.start
-  event.id = generateRandomId()
+}
+
+const saveOrUpdateEvent = async (updatedEvent: Event, isNew = true) => {
+  Object.assign(event, updatedEvent)
+  formatDateTime(event)
+
   const isFormCorrect = await v$.value.$validate()
-  if (!isFormCorrect) {
-    return
+  if (!isFormCorrect) return
+
+  if (isNew) {
+    event.id = generateRandomId()
+    addToLocalStorageEvents(event)
+    eventsServicePlugin.add(event)
+  } else {
+    updateLocalStorageEvent(event)
+    eventsServicePlugin.update(event)
   }
-  addToEvents()
+
   closeModal()
 }
 
-const editEvent = async (updatedEvent: Event) => {
-  Object.assign(event, updatedEvent)
-  event.start = event.start + ' ' + event.time
-  event.end = event.start
-  const isFormCorrect = await v$.value.$validate()
-  if (!isFormCorrect) {
-    return
-  }
-  updateEvents()
-  closeModal()
+const saveEvent = (updatedEvent: Event) => {
+  saveOrUpdateEvent(updatedEvent, true)
+}
+
+const editEvent = (updatedEvent: Event) => {
+  saveOrUpdateEvent(updatedEvent, false)
 }
 
 const closeModal = () => {
@@ -201,22 +155,76 @@ const closeModal = () => {
 
 const deleteEvent = () => {
   eventsServicePlugin.remove(event.id)
+  deleteEventFromLocalStorage(event.id)
   resetToDefault()
 }
+
+const resetToDefault = () => {
+  Object.assign(event, {
+    title: '',
+    start: '',
+    end: '',
+    time: '',
+    notes: '',
+    calendarId: colorsList.personal.colorName,
+    id: generateRandomId()
+  })
+}
+
+const calendarApp = createCalendar({
+  selectedDate: new Date().toISOString().split('T')[0],
+  defaultView: viewMonthGrid.name,
+  views: [createViewDay(), createViewWeek(), createViewMonthGrid(), createViewMonthAgenda()],
+  events: loadEventsFromLocalStorage(),
+  calendars: colorsList,
+  plugins: [
+    createDragAndDropPlugin(),
+    createCurrentTimePlugin(),
+    eventModalPlugin,
+    eventsServicePlugin,
+    calendarControls
+  ],
+  callbacks: {
+    onEventClick(calendarEvent) {
+      newModal.value = true
+      openModal.value = false
+      resetToDefault()
+      Object.assign(event, calendarEvent)
+    },
+    onClickDate(date) {
+      newModal.value = true
+      resetToDefault()
+      event.start = date
+      openModal.value = true
+    },
+    onClickDateTime(dateTime) {
+      newModal.value = true
+      openModal.value = true
+      const [date, time] = dateTime.split(' ')
+      event.start = date
+      event.end = date
+      event.time = time
+      event.id = generateRandomId()
+    },
+    onEventUpdate(updatedEvent) {
+      Object.assign(event, updatedEvent)
+      event.start = event.start + ' ' + event.time
+      event.end = event.start
+      updateLocalStorageEvent(event)
+    }
+  }
+})
 
 const changeView = (type: string) => {
   calendarControls.setView(type)
   viewCalendar.value = type
 }
 
-document.addEventListener('click', function (event) {
-  gridCalendarContainer.value = document.getElementsByClassName('sx__month-grid-wrapper')[0]
-  gridWeek.value = document.getElementsByClassName('sx__week-grid')[0]
-  if (
-    event.target instanceof Node &&
-    ((gridCalendarContainer.value && gridCalendarContainer.value.contains(event.target)) ||
-      (gridWeek.value && gridWeek.value.contains(event.target)))
-  ) {
+document.addEventListener('click', (event) => {
+  const calendarElement =
+    document.getElementsByClassName('sx__month-grid-wrapper')[0] ||
+    document.getElementsByClassName('sx__week-grid')[0]
+  if (calendarElement?.contains(event.target as Node)) {
     top.value = event.pageY
     left.value = event.pageX
   } else {
@@ -224,12 +232,10 @@ document.addEventListener('click', function (event) {
   }
 })
 
-const getGridCalendarContainer = () => {
-  gridCalendarContainer.value = document.getElementsByClassName('sx__month-grid-wrapper')[0]
-}
-
 onMounted(() => {
-  setTimeout(getGridCalendarContainer, 1000)
+  setTimeout(() => {
+    document.getElementsByClassName('sx__month-grid-wrapper')[0]
+  }, 1000)
 })
 </script>
 
