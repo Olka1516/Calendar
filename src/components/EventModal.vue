@@ -13,16 +13,16 @@
         <img src="@/assets/pictures/icons/exit.svg" alt="" />
       </button>
       <div class="field">
-        <IText name="event name" v-model="localEvent.title" />
+        <IText name="event name" v-model="localEvent.title" :v="v.title" />
       </div>
       <div class="field">
-        <IDate name="event date" v-model="localEvent.start" />
+        <IDate name="event date" v-model="localEvent.start" :v="v.start" />
       </div>
       <div class="field">
-        <ITime name="event time" v-model="localEvent.time" />
+        <ITime name="event time" v-model="localEvent.time" :v="v.time" />
       </div>
       <div class="field">
-        <IText name="notes" v-model="localEvent.notes" />
+        <IText name="notes" v-model="localEvent.notes" :v="v.notes" />
       </div>
       <div class="field">
         <IColor name="event color" v-model="localEvent.calendarId" />
@@ -43,12 +43,18 @@ import IText from '@/components/inputs/IText.vue'
 import IDate from '@/components/inputs/IDate.vue'
 import ITime from '@/components/inputs/ITime.vue'
 import IColor from '@/components/inputs/IColor.vue'
-import type { Event } from '@/types'
+import type { Error, Event } from '@/types'
 
 const props = defineProps<{
   event: Event
   add?: boolean
   coordinates: { top: number; left: number }
+  v: {
+    title: Error
+    start: Error
+    time: Error
+    notes: Error
+  }
 }>()
 
 const emit = defineEmits(['update:event', 'close', 'deleteEvent'])
@@ -57,7 +63,6 @@ const localEvent = reactive({ ...props.event })
 
 const saveEvent = () => {
   emit('update:event', localEvent)
-  emit('close')
 }
 
 const closeModal = () => {

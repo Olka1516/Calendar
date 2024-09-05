@@ -1,5 +1,17 @@
 <template>
-  <input required v-model="userInfo" @input="handleInput($event)" type="date" placeholder="" />
+  <input
+    required
+    v-model="userInfo"
+    @input="
+      handleInput($event);
+      props.v.$touch()
+    "
+    type="date"
+    placeholder=""
+    :class="{
+      invalid: isInvalid()
+    }"
+  />
   <i>{{ props.name }}</i>
 </template>
 <script setup lang="ts">
@@ -8,6 +20,11 @@ import { ref, watch } from 'vue'
 const props = defineProps<{
   modelValue: null | string
   name: string
+  v: {
+    $invalid: boolean
+    $dirty: boolean
+    $touch: Function
+  }
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +37,10 @@ const handleInput = (event: any) => {
   if (!event.target) return
   userInfo.value = event.target.value
   emit('update:modelValue', event.target.value)
+}
+
+const isInvalid = () => {
+  return props.v.$invalid && props.v.$dirty && !userInfo.value
 }
 
 watch(

@@ -22,7 +22,7 @@ import { ref } from 'vue'
 
 const isOpen = ref(false)
 const selectedColor = ref(colorsList.personal.lightColors.main)
-const props = defineProps<{
+defineProps<{
   modelValue: string
 }>()
 

@@ -2,8 +2,11 @@
   <input
     required
     v-model="userInfo"
-    @input="handleInput($event)"
-    :class="{ 'time-text': name === 'notes' }"
+    @input="
+      handleInput($event);
+      props.v.$touch()
+    "
+    :class="{ 'time-text': name === 'notes', invalid: isInvalid() }"
   />
   <i>{{ props.name }}</i>
 </template>
@@ -13,6 +16,11 @@ import { ref } from 'vue'
 const props = defineProps<{
   modelValue: string
   name: string
+  v: {
+    $invalid: boolean
+    $dirty: boolean
+    $touch: Function
+  }
 }>()
 
 const emit = defineEmits<{
@@ -25,6 +33,10 @@ const handleInput = (event: any) => {
   if (!event.target) return
   userInfo.value = event.target.value
   emit('update:modelValue', event.target.value)
+}
+
+const isInvalid = () => {
+  return props.v.$invalid && props.v.$dirty && !userInfo.value
 }
 </script>
 <style scoped lang="scss">

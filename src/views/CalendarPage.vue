@@ -2,6 +2,7 @@
   <div class="container">
     <EventModal
       v-if="openModal"
+      :v="v$"
       :event="event"
       @update:event="saveEvent"
       @close="closeModal"
@@ -12,6 +13,7 @@
     <ScheduleXCalendar :calendar-app="calendarApp">
       <template #eventModal>
         <EventModal
+          :v="v$"
           :event="event"
           @update:event="editEvent"
           @close="closeModal"
@@ -67,6 +69,8 @@ import '@schedule-x/theme-default/dist/index.css'
 import { onMounted, reactive, ref, type Reactive, type Ref } from 'vue'
 import type { Event } from '@/types'
 import { colorsList } from './data'
+import { required, maxLength } from '@vuelidate/validators'
+import { useVuelidate } from '@vuelidate/core'
 
 const eventsServicePlugin = createEventsServicePlugin()
 const eventModalPlugin = createEventModalPlugin()
@@ -88,6 +92,30 @@ const event: Reactive<Event> = reactive({
   id: 1
 })
 
+const generateRandomId = () => {
+  let result = ''
+  const digits = '0123456789'
+
+  for (let i = 0; i < 10; i++) {
+    const randomIndex = Math.floor(Math.random() * digits.length)
+    result += digits[randomIndex]
+  }
+
+  return result
+}
+
+const rules = {
+  title: { required, minLength: maxLength(30) },
+  start: { required },
+  end: { required },
+  time: { required },
+  notes: { required, minLength: maxLength(30) },
+  calendarId: { required },
+  id: { required }
+}
+
+const v$ = useVuelidate(rules, event)
+
 const calendarApp = createCalendar({
   selectedDate: new Date().toISOString().split('T')[0],
   defaultView: viewMonthGrid.name,
@@ -97,6 +125,7 @@ const calendarApp = createCalendar({
   plugins: [createDragAndDropPlugin(), eventModalPlugin, eventsServicePlugin, calendarControls],
   callbacks: {
     onEventClick(calendarEvent) {
+      openModal.value = false
       event.title = calendarEvent.title!
       event.start = calendarEvent.start
       event.end = calendarEvent.end
@@ -112,8 +141,9 @@ const calendarApp = createCalendar({
     },
 
     onClickDateTime(dateTime) {
-      resetToDefault()
+      console.log(dateTime)
       event.start = dateTime.split(' ')[0]
+      event.end = dateTime.split(' ')[0]
       event.time = dateTime.split(' ')[1]
       openModal.value = true
     }
@@ -127,28 +157,40 @@ const resetToDefault = () => {
   event.time = ''
   event.notes = ''
   event.calendarId = colorsList.personal.colorName
-  event.id = 2
+  event.id = 0
 }
 const addToEvents = () => {
-  event.end = event.start
   eventsServicePlugin.add(event)
   resetToDefault()
 }
 
 const updateEvents = () => {
-  event.end = event.start
   eventsServicePlugin.update(event)
   resetToDefault()
 }
 
-const saveEvent = (updatedEvent: Event) => {
+const saveEvent = async (updatedEvent: Event) => {
   Object.assign(event, updatedEvent)
+  event.end = event.start
+  event.id = generateRandomId()
+  const isFormCorrect = await v$.value.$validate()
+  if (!isFormCorrect) {
+    return
+  }
   addToEvents()
+  closeModal()
 }
 
-const editEvent = (updatedEvent: Event) => {
+const editEvent = async (updatedEvent: Event) => {
   Object.assign(event, updatedEvent)
+  event.start = event.start + ' ' + event.time
+  event.end = event.start
+  const isFormCorrect = await v$.value.$validate()
+  if (!isFormCorrect) {
+    return
+  }
   updateEvents()
+  closeModal()
 }
 
 const closeModal = () => {
@@ -171,8 +213,9 @@ document.addEventListener('click', function (event) {
   gridCalendarContainer.value = document.getElementsByClassName('sx__month-grid-wrapper')[0]
   gridWeek.value = document.getElementsByClassName('sx__week-grid')[0]
   if (
-    (gridCalendarContainer.value && gridCalendarContainer.value.contains(event.target)) ||
-    (gridWeek.value && gridWeek.value.contains(event.target))
+    event.target instanceof Node &&
+    ((gridCalendarContainer.value && gridCalendarContainer.value.contains(event.target)) ||
+      (gridWeek.value && gridWeek.value.contains(event.target)))
   ) {
     top.value = event.pageY
     left.value = event.pageX
